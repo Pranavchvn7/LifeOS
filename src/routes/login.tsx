@@ -21,7 +21,8 @@ function friendlyAuthError(message: string, mode: "in" | "up"): string {
   if (text.includes("secret") || text.includes("database") || text.includes("relation")) {
     return "The server isn't fully configured yet (database or secret missing). Please contact the site owner.";
   }
-  return mode === "up" ? "Could not create the account. Check the details and try again." : "Could not sign in. Check the details and try again.";
+  const base = mode === "up" ? "Could not create the account." : "Could not sign in.";
+  return message ? `${base} Server said: ${message}` : `${base} Check the details and try again.`;
 }
 
 function LoginPage() {
@@ -82,7 +83,8 @@ function LoginCard() {
               callbackURL: "/",
             });
       if (result.error) {
-        setError(friendlyAuthError(result.error.message ?? "", mode));
+        const status = result.error.status ? ` (${result.error.status})` : "";
+        setError(friendlyAuthError(`${result.error.message ?? ""}${status}`, mode));
         setPending(false);
         return;
       }
