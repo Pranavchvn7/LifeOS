@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.output/
+.vercel/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+
+# Local tooling / personal files — keep out of a public repo
+.grok/
+.tanstack/
+attachments/
+screenshots/*
+!screenshots/.gitkeep

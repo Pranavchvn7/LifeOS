@@ -147,7 +147,6 @@ export const useLife = create<LifeStore>((set) => ({
     }),
   removeHabit: (kind, id) =>
     set((state) => {
-      if (state[kind].length <= 1) return {};
       return bump(state, { [kind]: state[kind].filter((habit) => habit.id !== id) });
     }),
   patchReflection: (month, patch) =>

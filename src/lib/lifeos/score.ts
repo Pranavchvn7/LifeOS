@@ -51,7 +51,9 @@ export function buildScores(data: LifeData, today: string): DayScore[] {
     const dontsTotal = data.donts.length;
     const dosPct = dosTotal ? dosDone / dosTotal : 0;
     const dontsPct = dontsTotal ? dontsAvoided / dontsTotal : 0;
-    const overall = (dosPct + dontsPct) / 2;
+    // Only lists that exist count: with no don'ts yet, the day is scored on do's alone (and vice versa).
+    const overall =
+      dosTotal && dontsTotal ? (dosPct + dontsPct) / 2 : dosTotal ? dosPct : dontsTotal ? dontsPct : 0;
     const good = overall >= GOOD_DAY;
     let streak: number | null = null;
     if (date <= today) {

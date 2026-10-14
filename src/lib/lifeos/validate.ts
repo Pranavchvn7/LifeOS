@@ -26,7 +26,7 @@ function clip(value: unknown, max: number): string {
 }
 
 function parseHabits(value: unknown, name: string): Habit[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 40) {
+  if (!Array.isArray(value) || value.length > 40) {
     throw new Error(`Invalid ${name} list.`);
   }
   const seen = new Set<string>();

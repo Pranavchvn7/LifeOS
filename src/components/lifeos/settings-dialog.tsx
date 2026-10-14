@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { UserButton } from "@/lib/auth/gates";
-import { createSeed, todayISO, type Habit } from "@/lib/lifeos/model";
+import { createBlank, todayISO, type Habit } from "@/lib/lifeos/model";
 import { useLife } from "@/lib/lifeos/store";
 import { parseLifeData, selectData } from "@/lib/lifeos/validate";
 import { Field } from "./ui";
@@ -114,12 +114,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 type="button"
                 className="h-11 rounded-md bg-bad px-3 text-sm font-medium text-accent-fg"
                 onClick={() => {
-                  replace(createSeed());
+                  replace(createBlank());
                   setConfirmReset(false);
                   onClose();
                 }}
               >
-                Reset to the original LifeOS template
+                Yes, erase everything and start over
               </button>
               <button type="button" className="h-11 rounded-md border border-line px-3 text-sm" onClick={() => setConfirmReset(false)}>
                 Cancel
@@ -127,7 +127,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <button type="button" className="text-sm text-muted underline-offset-2 hover:underline" onClick={() => setConfirmReset(true)}>
-              Reset habits and goals to the original template
+              Start over: clear all habits, goals and logged days
             </button>
           )}
         </div>
@@ -153,6 +153,9 @@ function HabitEditor({
   return (
     <div className="mt-5">
       <h3 className="text-sm font-medium">{title}</h3>
+      {habits.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">None yet. Add your first {title === "Do's" ? "do" : "don't"} below.</p>
+      ) : null}
       <ul className="mt-2 space-y-2">
         {habits.map((habit) => (
           <li key={habit.id} className="flex gap-2">
@@ -170,9 +173,8 @@ function HabitEditor({
             />
             <button
               type="button"
-              disabled={habits.length <= 1}
               onClick={() => onRemove(habit.id)}
-              className="h-11 shrink-0 rounded-md border border-line px-3 text-sm text-muted disabled:opacity-40"
+              className="h-11 shrink-0 rounded-md border border-line px-3 text-sm text-muted"
             >
               Remove
             </button>

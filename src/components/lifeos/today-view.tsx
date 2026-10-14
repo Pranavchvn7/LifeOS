@@ -5,6 +5,7 @@ import {
   PROGRAM_END,
   PROGRAM_START,
   clampProgram,
+  createExample,
   dayNumber,
   emptyJournal,
   formatLong,
@@ -13,6 +14,7 @@ import {
   todayISO,
 } from "@/lib/lifeos/model";
 import { buildScores } from "@/lib/lifeos/score";
+import { selectData } from "@/lib/lifeos/validate";
 import { useLife } from "@/lib/lifeos/store";
 import { cn } from "@/lib/utils";
 import { Area, Field, Panel } from "./ui";
@@ -20,9 +22,11 @@ import { Area, Field, Panel } from "./ui";
 export function TodayView({
   date,
   onDate,
+  onSetup,
 }: {
   date: string;
   onDate: (iso: string) => void;
+  onSetup: () => void;
 }) {
   const dos = useLife((state) => state.dos);
   const donts = useLife((state) => state.donts);
@@ -43,6 +47,7 @@ export function TodayView({
     today,
   ).find((day) => day.date === date);
   const journal = journals[date] ?? emptyJournal();
+  const noHabits = dos.length === 0 && donts.length === 0;
   const atStart = date <= PROGRAM_START;
   const atEnd = date >= PROGRAM_END;
 
@@ -87,7 +92,32 @@ export function TodayView({
         </div>
       </div>
 
-      {score ? (
+      {noHabits ? (
+        <Panel>
+          <h2 className="font-display text-2xl font-medium">Welcome — let's set up your log</h2>
+          <p className="mt-1 text-sm text-muted">
+            Your log is empty. Add the daily habits you want to do (and the ones you want to avoid), then tick them off
+            here each day.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={onSetup} className="h-11 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg">
+              Add my own habits
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const example = createExample();
+                useLife.getState().replace({ ...selectData(useLife.getState()), ...example });
+              }}
+              className="h-11 rounded-md border border-line px-4 text-sm font-medium"
+            >
+              Start from an example
+            </button>
+          </div>
+        </Panel>
+      ) : null}
+
+      {score && !noHabits ? (
         <Panel>
           <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
             <div>
@@ -118,6 +148,14 @@ export function TodayView({
         <Panel>
           <h2 className="font-display text-2xl font-medium">Daily do's</h2>
           <p className="mb-3 text-sm text-muted">Tick each habit as you finish it. Done items stay struck through.</p>
+          {dos.length === 0 ? (
+            <p className="text-sm text-muted">
+              No do's yet.{" "}
+              <button type="button" className="underline underline-offset-2" onClick={onSetup}>
+                Add some
+              </button>
+            </p>
+          ) : null}
           <ul className="divide-y divide-line">
             {dos.map((habit) => {
               const cell = doChecks[date]?.[habit.id];
@@ -156,6 +194,14 @@ export function TodayView({
           <p className="mb-3 text-sm text-muted">
             Avoided or gave in. Unmarked does not count as avoided — honesty beats a perfect streak.
           </p>
+          {donts.length === 0 ? (
+            <p className="text-sm text-muted">
+              No don'ts yet.{" "}
+              <button type="button" className="underline underline-offset-2" onClick={onSetup}>
+                Add some
+              </button>
+            </p>
+          ) : null}
           <ul className="space-y-3">
             {donts.map((habit) => {
               const cell = dontChecks[date]?.[habit.id];

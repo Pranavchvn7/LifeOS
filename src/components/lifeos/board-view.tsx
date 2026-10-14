@@ -81,7 +81,7 @@ function indexFor(list: readonly { start: string; end: string }[], today: string
   return today < PROGRAM_START ? 0 : list.length - 1;
 }
 
-export function BoardView({ onOpenDate }: { onOpenDate: (iso: string) => void }) {
+export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) => void; onSetup: () => void }) {
   const dos = useLife((state) => state.dos);
   const donts = useLife((state) => state.donts);
   const doChecks = useLife((state) => state.doChecks);
@@ -294,6 +294,17 @@ export function BoardView({ onOpenDate }: { onOpenDate: (iso: string) => void })
           <p className="text-sm text-muted">{period.sub}</p>
         </div>
       )}
+
+      {dos.length === 0 && donts.length === 0 ? (
+        <Panel>
+          <p className="text-sm text-muted">
+            Add your daily do's and don'ts to start filling these charts.{" "}
+            <button type="button" className="font-medium text-fg underline underline-offset-2" onClick={onSetup}>
+              Set up habits
+            </button>
+          </p>
+        </Panel>
+      ) : null}
 
       {notStarted ? (
         <Panel>
@@ -609,6 +620,7 @@ function HabitBars({ title, habits }: { title: string; habits: HabitStat[] }) {
   return (
     <Panel>
       <h2 className="font-display text-2xl font-medium">{title}</h2>
+      {sorted.length === 0 ? <p className="mt-2 text-sm text-muted">None added yet.</p> : null}
       <ul className="mt-3 space-y-3">
         {sorted.map((habit) => (
           <li key={habit.id}>

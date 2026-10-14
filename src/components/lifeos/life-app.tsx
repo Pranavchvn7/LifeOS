@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, LayoutDashboard, ListChecks, Settings, Target } from "lucide-react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
-import { clampProgram, createSeed, todayISO } from "@/lib/lifeos/model";
+import { clampProgram, createBlank, todayISO } from "@/lib/lifeos/model";
 import { getLifeLog, saveLifeLog } from "@/lib/lifeos/life.functions";
 import { useLife } from "@/lib/lifeos/store";
 import { selectData } from "@/lib/lifeos/validate";
@@ -46,7 +46,7 @@ export function LifeApp({ userId }: { userId: string }) {
     void getLifeLog()
       .then((row) => {
         if (cancel) return;
-        useLife.getState().load(userId, row ?? createSeed());
+        useLife.getState().load(userId, row ?? createBlank());
       })
       .catch((err: unknown) => {
         if (cancel) return;
@@ -136,8 +136,8 @@ export function LifeApp({ userId }: { userId: string }) {
             saveNote={saveNoteText(saveState)}
           />
           <main className="px-4 py-5 pb-28 md:px-8 md:py-8 md:pb-10">
-            {view === "today" ? <TodayView date={date} onDate={setDate} /> : null}
-            {view === "board" ? <BoardView onOpenDate={openDate} /> : null}
+            {view === "today" ? <TodayView date={date} onDate={setDate} onSetup={() => setSettings(true)} /> : null}
+            {view === "board" ? <BoardView onOpenDate={openDate} onSetup={() => setSettings(true)} /> : null}
             {view === "journal" ? <JournalView onOpenDate={openDate} /> : null}
             {view === "goals" ? <GoalsView /> : null}
           </main>
