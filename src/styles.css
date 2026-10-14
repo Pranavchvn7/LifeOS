@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f3efe7;
+  --color-surface: #fbf9f4;
+  --color-inset: #ebe4d8;
+  --color-fg: #1c1915;
+  --color-muted: #6f675e;
+  --color-subtle: #8d857b;
+  --color-line: #e4dcd0;
+  --color-accent: #243f34;
+  --color-accent-fg: #f6f3ec;
+  --color-good: #1e6a43;
+  --color-good-soft: #e5f2ea;
+  --color-bad: #8e342e;
+  --color-bad-soft: #f8e8e6;
+  --color-heat-empty: #e6e0d6;
+  --color-heat-1: #d5e6db;
+  --color-heat-2: #a9d0bb;
+  --color-heat-3: #5f9a7a;
+  --color-heat-4: #2c6b4c;
+  --color-heat-5: #173d2c;
+  --color-heat-ink: #f6f3ec;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  input[type="range"] {
+    accent-color: var(--color-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.account-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 9rem;
+}
