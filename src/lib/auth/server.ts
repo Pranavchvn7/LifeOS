@@ -91,7 +91,44 @@ export const authConfigured =
 // it derives the origin per-request from the (proxied) host, validated against the
 // preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
 // the broker's preview client accepts.
-const explicitBaseURL = env("BETTER_AUTH_URL");
+// ── Public hosting (Vercel, custom domains, other platforms) ────────────────
+// Origins this deployment is reachable at. Without these, Better Auth rejects
+// sign-up/sign-in POSTs with "Invalid origin" (shown in the UI as "Sign-in was
+// blocked by the browser origin"). Sources, in priority order:
+//   BETTER_AUTH_URL                – your canonical public URL (recommended)
+//   APP_URL / NEXT_PUBLIC_APP_URL  – alternative names
+//   VERCEL_PROJECT_PRODUCTION_URL  – auto-set by Vercel (production domain)
+//   VERCEL_URL / VERCEL_BRANCH_URL – auto-set by Vercel (per-deployment hosts)
+//   TRUSTED_ORIGINS                – comma-separated extras (custom domains)
+const toOrigin = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  const trimmed = value.trim().replace(/\/+$/, "");
+  if (!trimmed) return undefined;
+  const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(withProto).origin;
+  } catch {
+    return undefined;
+  }
+};
+
+const configuredOrigin =
+  toOrigin(env("BETTER_AUTH_URL")) ??
+  toOrigin(env("APP_URL")) ??
+  toOrigin(env("NEXT_PUBLIC_APP_URL"));
+const vercelOrigins = [
+  toOrigin(env("VERCEL_PROJECT_PRODUCTION_URL")),
+  toOrigin(env("VERCEL_BRANCH_URL")),
+  toOrigin(env("VERCEL_URL")),
+].filter((v): v is string => Boolean(v));
+const extraOrigins = (env("TRUSTED_ORIGINS") ?? "")
+  .split(",")
+  .map((v) => toOrigin(v))
+  .filter((v): v is string => Boolean(v));
+
+const onVercel = Boolean(env("VERCEL")) || vercelOrigins.length > 0;
+const explicitBaseURL = configuredOrigin ?? vercelOrigins[0];
+
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -103,27 +140,54 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
-const baseURL = explicitBaseURL ?? {
-  // Include loopback hosts so dynamic baseURL resolves for local email/password
-  // (not only the preview wildcard).
-  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
-  // `auto` → trust both http:// and https:// expansions of allowedHosts
-  // (preview is https; local dev is http).
-  protocol: "auto" as const,
-  fallback: "http://localhost:8080",
-};
+
+// Hosts (no scheme) derived from every known public origin, so the dynamic
+// baseURL also resolves for preview deployments and custom domains.
+const publicHosts = [configuredOrigin, ...vercelOrigins, ...extraOrigins]
+  .filter((v): v is string => Boolean(v))
+  .map((o) => new URL(o).host);
+
+// When deployed on a public platform we use a dynamic baseURL so the correct
+// origin is derived from the request host (validated against an allowlist).
+// This makes sign-up work on production, preview and custom domains alike.
+const baseURL = onVercel || configuredOrigin
+  ? {
+      allowedHosts: [
+        ...new Set([
+          ...publicHosts,
+          ...(onVercel ? ["*.vercel.app"] : []),
+          "localhost",
+          "127.0.0.1",
+          "[::1]",
+        ]),
+      ],
+      protocol: "auto" as const,
+      fallback: explicitBaseURL ?? "http://localhost:8080",
+    }
+  : {
+      // Sandbox live preview / local dev (no public URL configured).
+      allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
+      // `auto` → trust both http:// and https:// expansions of allowedHosts
+      // (preview is https; local dev is http).
+      protocol: "auto" as const,
+      fallback: "http://localhost:8080",
+    };
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
-  : [
-      // Host wildcards (matched against Origin's host)
-      ...previewAllowedHosts,
-      // Full-origin wildcards (matched against Origin)
-      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-      ...LOCAL_DEV_ORIGINS,
-    ];
+const trustedOrigins: string[] = [
+  ...new Set([
+    ...(configuredOrigin ? [configuredOrigin] : []),
+    ...vercelOrigins,
+    ...extraOrigins,
+    // Any *.vercel.app deployment (production, previews, branch URLs).
+    ...(onVercel ? ["*.vercel.app", "https://*.vercel.app"] : []),
+    // Sandbox live preview hosts (harmless when deployed elsewhere).
+    ...previewAllowedHosts,
+    ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+    ...LOCAL_DEV_ORIGINS,
+  ]),
+];
 
 const databaseUrl = env("DATABASE_URL");
 
@@ -171,6 +235,19 @@ const grokOAuthPlugin = authConfigured
       })),
     })
   : null;
+
+if (onVercel && !env("BETTER_AUTH_SECRET")) {
+  console.error(
+    "[auth] BETTER_AUTH_SECRET is not set. Sessions will break across serverless " +
+      "instances. Add a random 32+ char value in Vercel > Settings > Environment Variables.",
+  );
+}
+if (onVercel && !databaseUrl) {
+  console.error(
+    "[auth] DATABASE_URL is not set. Accounts cannot persist on Vercel with the " +
+      "in-memory fallback database. Add a Postgres (e.g. Neon) connection string.",
+  );
+}
 
 export const auth = betterAuth({
   baseURL,

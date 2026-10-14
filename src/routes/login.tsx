@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Navigate, useRouter } from "@tanstack/react-router";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -15,7 +15,12 @@ function friendlyAuthError(message: string, mode: "in" | "up"): string {
     return "Email or password doesn't match.";
   }
   if (text.includes("password")) return "Use at least 8 characters for the password.";
-  if (text.includes("invalid origin")) return "Sign-in was blocked by the browser origin. Try again from this page.";
+  if (text.includes("invalid origin")) {
+    return "Sign-in was blocked because this site's address isn't trusted by the server yet. The site owner needs to set BETTER_AUTH_URL to this site's URL.";
+  }
+  if (text.includes("secret") || text.includes("database") || text.includes("relation")) {
+    return "The server isn't fully configured yet (database or secret missing). Please contact the site owner.";
+  }
   return mode === "up" ? "Could not create the account. Check the details and try again." : "Could not sign in. Check the details and try again.";
 }
 
@@ -26,8 +31,18 @@ function LoginPage() {
   return <LoginCard />;
 }
 
+// Grok broker sign-in (Google/X) only works on Grok-hosted domains. On Vercel or
+// any other public host, only email + password is offered.
+function brokerSignInAvailable(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host.endsWith(".grok-sandbox.com") || host.endsWith(".grok.me");
+}
+
 function LoginCard() {
   const router = useRouter();
+  const [showBroker, setShowBroker] = useState(false);
+  useEffect(() => setShowBroker(brokerSignInAvailable()), []);
   const [mode, setMode] = useState<"in" | "up">("in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -165,6 +180,8 @@ function LoginCard() {
                 </button>
               </form>
 
+              {showBroker ? (
+                <>
               <div className="my-4 flex items-center gap-3 text-xs uppercase tracking-wide text-subtle">
                 <span className="h-px flex-1 bg-line" />
                 or
@@ -182,6 +199,8 @@ function LoginCard() {
                   </button>
                 ))}
               </div>
+                </>
+              ) : null}
             </>
           ) : (
             <p className="text-sm text-muted">Sign-in is disabled.</p>
