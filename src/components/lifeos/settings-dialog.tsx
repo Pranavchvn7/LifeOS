@@ -48,7 +48,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-labelledby="settings-title"
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-xl bg-surface p-4 sm:rounded-xl"
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

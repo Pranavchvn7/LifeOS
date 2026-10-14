@@ -98,7 +98,7 @@ function LoginCard() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-paper px-4 py-10">
+    <main className="grid min-h-dvh place-items-center bg-paper px-4 py-10">
       <div className="w-full max-w-md">
         <p className="font-display text-4xl font-medium tracking-tight text-fg">LifeOS</p>
         <h1 className="mt-2 font-display text-xl text-fg">Personal growth, kept per person</h1>

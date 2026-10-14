@@ -5,7 +5,9 @@ import { clampProgram, createSeed, todayISO } from "@/lib/lifeos/model";
 import { getLifeLog, saveLifeLog } from "@/lib/lifeos/life.functions";
 import { useLife } from "@/lib/lifeos/store";
 import { selectData } from "@/lib/lifeos/validate";
+import { useTheme } from "@/lib/lifeos/theme";
 import { cn } from "@/lib/utils";
+import { AppHeader } from "./app-header";
 import { BoardView } from "./board-view";
 import { BootScreen } from "./boot-screen";
 import { GoalsView } from "./goals-view";
@@ -32,6 +34,7 @@ export function LifeApp({ userId }: { userId: string }) {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [mounted, setMounted] = useState(false);
   const chain = useRef<Promise<void>>(Promise.resolve());
+  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => setMounted(true), []);
 
@@ -76,7 +79,7 @@ export function LifeApp({ userId }: { userId: string }) {
   if (loadError === "unauthorized") return <RedirectToSignIn />;
   if (loadError) {
     return (
-      <main className="grid min-h-screen place-items-center bg-paper px-6 text-center">
+      <main className="grid min-h-dvh place-items-center bg-paper px-6 text-center">
         <div className="max-w-sm">
           <p className="font-display text-2xl">LifeOS</p>
           <p className="mt-2 text-sm text-muted">{loadError}</p>
@@ -102,9 +105,9 @@ export function LifeApp({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-paper text-fg">
-      <div className="mx-auto grid min-h-screen max-w-6xl md:grid-cols-[15rem_1fr]">
-        <aside className="hidden border-r border-line md:flex md:flex-col md:px-4 md:py-6">
+    <div className="min-h-dvh bg-paper text-fg">
+      <div className="mx-auto grid min-h-dvh max-w-6xl md:grid-cols-[15rem_1fr]">
+        <aside className="hidden border-r border-line md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:px-4 md:py-6">
           <p className="font-display text-2xl font-medium tracking-tight">LifeOS</p>
           <p className="mt-1 text-sm text-muted">23 Sep – 21 Dec 2026</p>
           <nav className="mt-6 flex flex-col gap-1">
@@ -126,20 +129,12 @@ export function LifeApp({ userId }: { userId: string }) {
         </aside>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-sm md:hidden">
-            <p className="font-display text-xl font-medium">LifeOS</p>
-            <div className="flex items-center gap-2">
-              <SaveNote state={saveState} />
-              <button
-                type="button"
-                aria-label="Account and habits"
-                onClick={() => setSettings(true)}
-                className="grid size-11 place-items-center rounded-md border border-line bg-surface"
-              >
-                <Settings className="size-5" />
-              </button>
-            </div>
-          </header>
+          <AppHeader
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onSettings={() => setSettings(true)}
+            saveNote={saveNoteText(saveState)}
+          />
           <main className="px-4 py-5 pb-28 md:px-8 md:py-8 md:pb-10">
             {view === "today" ? <TodayView date={date} onDate={setDate} /> : null}
             {view === "board" ? <BoardView onOpenDate={openDate} /> : null}
@@ -196,8 +191,13 @@ function NavButton({
   );
 }
 
+function saveNoteText(state: "idle" | "saving" | "saved" | "error"): string {
+  if (state === "idle") return "";
+  return state === "saving" ? "Saving…" : state === "saved" ? "Saved to your account" : "Not saved";
+}
+
 function SaveNote({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
-  if (state === "idle") return null;
-  const text = state === "saving" ? "Saving…" : state === "saved" ? "Saved to your account" : "Not saved";
+  const text = saveNoteText(state);
+  if (!text) return null;
   return <p className={cn("text-xs", state === "error" ? "text-bad" : "text-subtle")}>{text}</p>;
 }

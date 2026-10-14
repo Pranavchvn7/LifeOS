@@ -32,6 +32,17 @@
 @layer base {
   html {
     color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    overflow-x: hidden;
+  }
+  button,
+  [role="button"],
+  select,
+  input[type="range"] {
+    touch-action: manipulation;
   }
   body {
     margin: 0;
@@ -67,4 +78,32 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 9rem;
+}
+
+/* Dark theme: same tokens, darker values. Toggled by the header button. */
+:root.dark {
+  color-scheme: dark;
+  --color-paper: #14120f;
+  --color-surface: #1c1915;
+  --color-inset: #27231d;
+  --color-fg: #f1ece2;
+  --color-muted: #aaa194;
+  --color-subtle: #8a8277;
+  --color-line: #322d26;
+  --color-accent: #6fbf94;
+  --color-accent-fg: #0f1a14;
+  --color-good: #6fbf94;
+  --color-good-soft: #1c2e25;
+  --color-bad: #e08a82;
+  --color-bad-soft: #35201e;
+  --color-heat-empty: #27231d;
+  --color-heat-1: #1f3a2d;
+  --color-heat-2: #2a5a42;
+  --color-heat-3: #3f8a63;
+  --color-heat-4: #5fb386;
+  --color-heat-5: #8fd6ae;
+  --color-heat-ink: #0f1a14;
+}
+:root.dark body {
+  background: var(--color-paper);
 }

@@ -9,13 +9,20 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
       {
         name: "description",
         content: "Daily do's, don'ts, journal, goals, and a discipline scoreboard. Each account keeps its own log.",
       },
       { name: "theme-color", content: "#f3efe7" },
+    ],
+    scripts: [
+      {
+        // Apply the saved/system theme before first paint (no light→dark flash).
+        children:
+          'try{var t=localStorage.getItem("lifeos-theme");if(t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}',
+      },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
