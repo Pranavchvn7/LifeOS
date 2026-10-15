@@ -17,14 +17,13 @@ import {
 } from "recharts";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  MONTHS,
-  PROGRAM_END,
-  PROGRAM_START,
   calendarCells,
   emptyReflection,
   formatMonthDay,
   formatPretty,
   pctLabel,
+  programMonths,
+  programOf,
   programWeeks,
   todayISO,
   type LifeData,
@@ -42,6 +41,7 @@ import {
 } from "@/lib/lifeos/score";
 import { useLife } from "@/lib/lifeos/store";
 import { cn } from "@/lib/utils";
+import { BadgesPanel } from "./badges-panel";
 import { Area as TextArea, Field, Panel } from "./ui";
 
 type Range = "week" | "month" | "year";
@@ -64,7 +64,6 @@ const TOOLTIP_STYLE = {
   fontSize: 13,
 } as const;
 
-const WEEKS = programWeeks();
 const pct = (ratio: number) => Math.round(ratio * 100);
 const avg = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
 
@@ -78,31 +77,38 @@ function scoreColor(score: number | null): string {
 function indexFor(list: readonly { start: string; end: string }[], today: string): number {
   const found = list.findIndex((item) => today >= item.start && today <= item.end);
   if (found >= 0) return found;
-  return today < PROGRAM_START ? 0 : list.length - 1;
+  const first = list[0];
+  return first && today < first.start ? 0 : Math.max(0, list.length - 1);
 }
 
-export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) => void; onSetup: () => void }) {
-  const dos = useLife((state) => state.dos);
-  const donts = useLife((state) => state.donts);
-  const doChecks = useLife((state) => state.doChecks);
-  const dontChecks = useLife((state) => state.dontChecks);
-  const journals = useLife((state) => state.journals);
-  const oneLines = useLife((state) => state.oneLines);
-  const reflections = useLife((state) => state.reflections);
+export function BoardView({
+  data,
+  readOnly = false,
+  onOpenDate,
+  onSetup,
+}: {
+  data: LifeData;
+  /** Shared (view-only) mode: no editing, no links to other screens. */
+  readOnly?: boolean;
+  onOpenDate?: (iso: string) => void;
+  onSetup?: () => void;
+}) {
   const patchReflection = useLife((state) => state.patchReflection);
+  const { dos, donts, journals, reflections } = data;
 
   const today = todayISO();
-  const data = useMemo<LifeData>(
-    () => ({ dos, donts, doChecks, dontChecks, journals, oneLines, goals: [], reflections }),
-    [dos, donts, doChecks, dontChecks, journals, oneLines, reflections],
-  );
+  const program = useMemo(() => programOf(data), [data.programStart, data.programDays]); // eslint-disable-line react-hooks/exhaustive-deps
+  const WEEKS = useMemo(() => programWeeks(program), [program]);
+  const MONTHS = useMemo(() => programMonths(program), [program]);
   const days = useMemo(() => buildScores(data, today), [data, today]);
   const byDate = useMemo(() => new Map(days.map((day) => [day.date, day])), [days]);
   const overall = useMemo(() => summarize(days, today), [days, today]);
 
   const [range, setRange] = useState<Range>("week");
-  const [weekIdx, setWeekIdx] = useState(() => indexFor(WEEKS, today));
-  const [monthIdx, setMonthIdx] = useState(() => indexFor(MONTHS, today));
+  const [weekPick, setWeekIdx] = useState(() => indexFor(WEEKS, today));
+  const [monthPick, setMonthIdx] = useState(() => indexFor(MONTHS, today));
+  const weekIdx = Math.min(weekPick, WEEKS.length - 1);
+  const monthIdx = Math.min(monthPick, MONTHS.length - 1);
 
   // 7-day moving average of the daily score (for the month trend line).
   const movingAvg = useMemo(() => {
@@ -123,8 +129,13 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
       const month = MONTHS[monthIdx] ?? MONTHS[0];
       return { start: month.start, end: month.end, title: month.label, sub: `${formatMonthDay(month.start)} – ${formatMonthDay(month.end)}` };
     }
-    return { start: PROGRAM_START, end: PROGRAM_END, title: "Full program", sub: `${formatMonthDay(PROGRAM_START)} – ${formatMonthDay(PROGRAM_END)} 2026` };
-  }, [range, weekIdx, monthIdx]);
+    return {
+      start: program.start,
+      end: program.end,
+      title: `Full ${program.days}-day program`,
+      sub: `${formatMonthDay(program.start)} – ${formatMonthDay(program.end)} ${program.end.slice(0, 4)}`,
+    };
+  }, [range, weekIdx, monthIdx, WEEKS, MONTHS, program]);
 
   const stats = useMemo(() => rangeStats(days, period.start, period.end, today), [days, period, today]);
 
@@ -133,7 +144,7 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
     if (!prev) return null;
     const s = rangeStats(days, prev.start, prev.end, today);
     return s.elapsedDays > 0 ? s : null;
-  }, [days, range, weekIdx, monthIdx, today]);
+  }, [days, range, weekIdx, monthIdx, today, WEEKS, MONTHS]);
   const delta = previous && stats.elapsedDays > 0 ? pct(stats.avgOverall) - pct(previous.avgOverall) : null;
 
   const habits = useMemo(() => habitStats(data, period.start, period.end, today), [data, period, today]);
@@ -151,9 +162,9 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
             date: day.date,
             name: range === "week" ? formatPretty(day.date).split(" ")[0] : String(Number(day.date.slice(8))),
             label: formatPretty(day.date),
-            score: elapsed ? pct(day.overall) : null,
-            dos: elapsed ? pct(day.dosPct) : null,
-            donts: elapsed ? pct(day.dontsPct) : null,
+            score: elapsed && !day.rest ? pct(day.overall) : null,
+            dos: elapsed && !day.rest ? pct(day.dosPct) : null,
+            donts: elapsed && !day.rest ? pct(day.dontsPct) : null,
             avg7: movingAvg.get(day.date) ?? null,
           };
         }),
@@ -176,11 +187,11 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
       bucketRow(`W${w.index}`, `${w.label} · ${formatMonthDay(w.start)}–${formatMonthDay(w.end)}`, w.start > period.start ? w.start : period.start, w.end < period.end ? w.end : period.end),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days, today, range, period]);
+  }, [days, today, range, period, WEEKS]);
   const monthRows = useMemo(
-    () => MONTHS.map((m) => bucketRow(m.label.slice(0, 3), m.label, m.start, m.end)),
+    () => MONTHS.map((m) => bucketRow(m.short, m.label, m.start, m.end)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [days, today],
+    [days, today, MONTHS],
   );
 
   const trendRows = range === "year" ? weekRows : dayRows;
@@ -225,12 +236,12 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
   }, [weekday, habits, moods, stats.longestRun]);
 
   const heatCells = useMemo(() => {
-    const rows = calendarCells().map((week) => week.map((iso) => (iso && iso >= period.start && iso <= period.end ? iso : null)));
+    const rows = calendarCells(program).map((week) => week.map((iso) => (iso && iso >= period.start && iso <= period.end ? iso : null)));
     return rows.filter((row) => row.some(Boolean));
-  }, [period]);
+  }, [period, program]);
 
   const notStarted = stats.elapsedDays === 0;
-  const month = MONTHS[monthIdx] ?? MONTHS[0];
+  const month = MONTHS[monthIdx] ?? MONTHS[0]!;
   const reflection = reflections[month.key] ?? emptyReflection();
 
   return (
@@ -251,6 +262,7 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
             role="tab"
             type="button"
             aria-selected={range === item}
+            data-testid={`range-${item}`}
             onClick={() => setRange(item)}
             className={cn(
               "h-11 rounded-md text-sm font-medium capitalize",
@@ -265,26 +277,27 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
       {/* Period picker */}
       {range === "week" ? (
         <div className="flex items-center justify-between gap-2">
-          <NavBtn label="Previous week" disabled={weekIdx <= 0} onClick={() => setWeekIdx((i) => Math.max(0, i - 1))} dir="left" />
+          <NavBtn testId="week-prev" label="Previous week" disabled={weekIdx <= 0} onClick={() => setWeekIdx((i) => Math.max(0, i - 1))} dir="left" />
           <div className="text-center">
             <p className="font-display text-xl font-medium">{period.title}</p>
             <p className="text-sm text-muted">{period.sub}</p>
           </div>
-          <NavBtn label="Next week" disabled={weekIdx >= WEEKS.length - 1} onClick={() => setWeekIdx((i) => Math.min(WEEKS.length - 1, i + 1))} dir="right" />
+          <NavBtn testId="week-next" label="Next week" disabled={weekIdx >= WEEKS.length - 1} onClick={() => setWeekIdx((i) => Math.min(WEEKS.length - 1, i + 1))} dir="right" />
         </div>
       ) : range === "month" ? (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {MONTHS.map((m, i) => (
             <button
               key={m.key}
               type="button"
+              data-testid={`month-${m.key}`}
               onClick={() => setMonthIdx(i)}
               className={cn(
                 "h-11 rounded-md border text-sm font-medium",
                 i === monthIdx ? "border-accent bg-accent text-accent-fg" : "border-line bg-surface text-muted",
               )}
             >
-              {m.label.slice(0, 3)}
+              {m.short}
             </button>
           ))}
         </div>
@@ -295,11 +308,11 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
         </div>
       )}
 
-      {dos.length === 0 && donts.length === 0 ? (
+      {!readOnly && dos.length === 0 && donts.length === 0 ? (
         <Panel>
           <p className="text-sm text-muted">
             Add your daily do's and don'ts to start filling these charts.{" "}
-            <button type="button" className="font-medium text-fg underline underline-offset-2" onClick={onSetup}>
+            <button type="button" className="font-medium text-fg underline underline-offset-2" onClick={onSetup} data-testid="board-setup">
               Set up habits
             </button>
           </p>
@@ -418,7 +431,7 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
       {/* Calendar / tiles */}
       <Panel>
         <h2 className="font-display text-2xl font-medium">{range === "week" ? "This week, day by day" : "Discipline calendar"}</h2>
-        <p className="mb-3 text-sm text-muted">Darker green means a higher score. Tap a day to open it.</p>
+        <p className="mb-3 text-sm text-muted">Darker green means a higher score.{readOnly ? "" : " Tap a day to open it."}</p>
         {range === "week" ? (
           <div className="grid grid-cols-7 gap-1.5">
             {dayRows.map((row) => {
@@ -428,7 +441,8 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
                 <button
                   key={iso}
                   type="button"
-                  onClick={() => onOpenDate(iso)}
+                  disabled={readOnly || !onOpenDate}
+                  onClick={() => onOpenDate?.(iso)}
                   className={cn(
                     "flex min-h-16 flex-col items-center justify-center rounded-md px-0.5 py-2 text-xs font-medium",
                     HEAT[heatLevel(day)],
@@ -459,7 +473,8 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
                       <button
                         key={iso}
                         type="button"
-                        onClick={() => onOpenDate(iso)}
+                        disabled={readOnly || !onOpenDate}
+                        onClick={() => onOpenDate?.(iso)}
                         title={`${formatPretty(iso)} · ${day ? pctLabel(day.overall) : "0%"}`}
                         className={cn(
                           "grid h-11 place-items-center rounded-sm text-xs font-medium tabular-nums",
@@ -539,7 +554,7 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
       </Panel>
 
       {/* Month-end reflection (month view) */}
-      {range === "month" ? (
+      {range === "month" && !readOnly ? (
         <Panel>
           <h2 className="font-display text-2xl font-medium">{month.label} reflection</h2>
           <p className="mb-3 text-sm text-muted">A bigger-picture look back at this month.</p>
@@ -563,6 +578,27 @@ export function BoardView({ onOpenDate, onSetup }: { onOpenDate: (iso: string) =
           </div>
         </Panel>
       ) : null}
+
+      {range === "year" && data.pastPrograms.length > 0 ? (
+        <Panel>
+          <h2 className="font-display text-2xl font-medium">Past programs</h2>
+          <p className="mb-3 text-sm text-muted">Results from programs you finished or replaced.</p>
+          <ul className="space-y-2" data-testid="past-programs">
+            {[...data.pastPrograms].reverse().map((p) => (
+              <li key={`${p.start}-${p.end}`} className="rounded-lg border border-line bg-paper p-3 text-sm" data-testid="past-program">
+                <p className="font-medium">
+                  {formatMonthDay(p.start)} – {formatMonthDay(p.end)} {p.end.slice(0, 4)} · {p.days} days
+                </p>
+                <p className="mt-0.5 text-muted">
+                  Average {p.avgScore}% · {p.goodDays} good days · {p.loggedDays} logged · best streak {p.bestStreak}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
+
+      <BadgesPanel data={data} />
     </div>
   );
 }
@@ -600,12 +636,13 @@ function Dot({ color, label }: { color: string; label: string }) {
   );
 }
 
-function NavBtn({ label, disabled, onClick, dir }: { label: string; disabled: boolean; onClick: () => void; dir: "left" | "right" }) {
+function NavBtn({ label, disabled, onClick, dir, testId }: { label: string; disabled: boolean; onClick: () => void; dir: "left" | "right"; testId: string }) {
   const Icon = dir === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
       aria-label={label}
+      data-testid={testId}
       disabled={disabled}
       onClick={onClick}
       className="grid size-11 shrink-0 place-items-center rounded-md border border-line bg-surface disabled:opacity-40"

@@ -1,5 +1,12 @@
 import {
+  DEFAULT_PROGRAM_DAYS,
+  DEFAULT_PROGRAM_START,
   GOAL_STATUSES,
+  TODO_PRIORITIES,
+  type PastProgram,
+  type Todo,
+  type TodoPriority,
+  type WeeklyReview,
   type DontCheck,
   type DontStatus,
   type DoCheck,
@@ -14,7 +21,8 @@ import {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH_KEY = /^\d{4}-\d{2}$/;
-const MAX_JSON = 750_000;
+const MAX_JSON = 2_000_000;
+const MAX_DATES = 2000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -36,7 +44,11 @@ function parseHabits(value: unknown, name: string): Habit[] {
     const label = clip(item.label, 140);
     if (!id || !label || seen.has(id)) throw new Error(`Invalid ${name} list.`);
     seen.add(id);
-    return { id, label };
+    const days = Array.isArray(item.days)
+      ? [...new Set(item.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort()
+      : [];
+    // Empty or all-seven means "every day" — store that as no schedule.
+    return days.length > 0 && days.length < 7 ? { id, label, days } : { id, label };
   });
 }
 
@@ -47,7 +59,7 @@ function parseDoChecks(
   if (value == null) return {};
   if (!isRecord(value)) throw new Error("Invalid do checklist.");
   const out: Record<string, Record<string, DoCheck>> = {};
-  for (const date of Object.keys(value).slice(0, 500)) {
+  for (const date of Object.keys(value).slice(0, MAX_DATES)) {
     if (!ISO_DATE.test(date) || !isRecord(value[date])) continue;
     const bucket: Record<string, DoCheck> = {};
     const day = value[date] as Record<string, unknown>;
@@ -68,7 +80,7 @@ function parseDontChecks(
   if (value == null) return {};
   if (!isRecord(value)) throw new Error("Invalid don't checklist.");
   const out: Record<string, Record<string, DontCheck>> = {};
-  for (const date of Object.keys(value).slice(0, 500)) {
+  for (const date of Object.keys(value).slice(0, MAX_DATES)) {
     if (!ISO_DATE.test(date) || !isRecord(value[date])) continue;
     const bucket: Record<string, DontCheck> = {};
     const day = value[date] as Record<string, unknown>;
@@ -88,7 +100,7 @@ function parseJournals(value: unknown): Record<string, JournalEntry> {
   if (value == null) return {};
   if (!isRecord(value)) throw new Error("Invalid journal.");
   const out: Record<string, JournalEntry> = {};
-  for (const date of Object.keys(value).slice(0, 500)) {
+  for (const date of Object.keys(value).slice(0, MAX_DATES)) {
     if (!ISO_DATE.test(date) || !isRecord(value[date])) continue;
     const entry = value[date] as Record<string, unknown>;
     const mood =
@@ -109,7 +121,7 @@ function parseLines(value: unknown): Record<string, string> {
   if (value == null) return {};
   if (!isRecord(value)) throw new Error("Invalid one-line journal.");
   const out: Record<string, string> = {};
-  for (const date of Object.keys(value).slice(0, 500)) {
+  for (const date of Object.keys(value).slice(0, MAX_DATES)) {
     if (!ISO_DATE.test(date)) continue;
     const line = clip(value[date], 280);
     if (line) out[date] = line;
@@ -118,6 +130,7 @@ function parseLines(value: unknown): Record<string, string> {
 }
 
 function parseGoals(value: unknown): Goal[] {
+  if (value == null) return [];
   if (!Array.isArray(value) || value.length > 40) throw new Error("Invalid goals.");
   const seen = new Set<string>();
   const goals: Goal[] = [];
@@ -166,6 +179,82 @@ function parseReflections(value: unknown): Record<string, MonthReflection> {
   return out;
 }
 
+function parseTodos(value: unknown): Todo[] {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > 500) throw new Error("Invalid to-do list.");
+  const seen = new Set<string>();
+  const todos: Todo[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) throw new Error("Invalid to-do list.");
+    const id = clip(item.id, 64);
+    const title = clip(item.title, 200);
+    if (!id || !title || seen.has(id)) throw new Error("Invalid to-do list.");
+    seen.add(id);
+    const priority: TodoPriority = TODO_PRIORITIES.includes(item.priority as TodoPriority)
+      ? (item.priority as TodoPriority)
+      : "medium";
+    const date = (v: unknown) => (ISO_DATE.test(clip(v, 10)) ? clip(v, 10) : "");
+    const done = item.done === true;
+    todos.push({
+      id,
+      title,
+      done,
+      priority,
+      due: date(item.due),
+      notes: clip(item.notes, 1000),
+      created: date(item.created),
+      doneOn: done ? date(item.doneOn) : "",
+    });
+  }
+  return todos;
+}
+
+function parseWeeklyReviews(value: unknown): Record<string, WeeklyReview> {
+  if (value == null) return {};
+  if (!isRecord(value)) throw new Error("Invalid weekly reviews.");
+  const out: Record<string, WeeklyReview> = {};
+  for (const key of Object.keys(value).slice(0, 300)) {
+    if (!ISO_DATE.test(key) || !isRecord(value[key])) continue;
+    const entry = value[key] as Record<string, unknown>;
+    const rating =
+      typeof entry.rating === "number" && entry.rating >= 1 && entry.rating <= 5
+        ? Math.round(entry.rating)
+        : null;
+    out[key] = {
+      wins: clip(entry.wins, 4000),
+      struggles: clip(entry.struggles, 4000),
+      lesson: clip(entry.lesson, 4000),
+      focus: clip(entry.focus, 4000),
+      rating,
+    };
+  }
+  return out;
+}
+
+function parsePastPrograms(value: unknown): PastProgram[] {
+  if (value == null) return [];
+  if (!Array.isArray(value)) throw new Error("Invalid program history.");
+  const num = (v: unknown, max: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(0, Math.round(v))) : 0;
+  const out: PastProgram[] = [];
+  for (const item of value.slice(0, 50)) {
+    if (!isRecord(item)) continue;
+    const start = clip(item.start, 10);
+    const end = clip(item.end, 10);
+    if (!ISO_DATE.test(start) || !ISO_DATE.test(end)) continue;
+    out.push({
+      start,
+      end,
+      days: num(item.days, 366),
+      avgScore: num(item.avgScore, 100),
+      goodDays: num(item.goodDays, 366),
+      loggedDays: num(item.loggedDays, 366),
+      bestStreak: num(item.bestStreak, 366),
+    });
+  }
+  return out;
+}
+
 export function parseLifeData(input: unknown): LifeData {
   let size = 0;
   try {
@@ -177,6 +266,13 @@ export function parseLifeData(input: unknown): LifeData {
   if (!isRecord(input)) throw new Error("Invalid log.");
   const dos = parseHabits(input.dos, "do");
   const donts = parseHabits(input.donts, "don't");
+  const programStart = ISO_DATE.test(clip(input.programStart, 10))
+    ? clip(input.programStart, 10)
+    : DEFAULT_PROGRAM_START;
+  const programDays =
+    typeof input.programDays === "number" && input.programDays >= 7 && input.programDays <= 366
+      ? Math.round(input.programDays)
+      : DEFAULT_PROGRAM_DAYS;
   return {
     dos,
     donts,
@@ -186,6 +282,11 @@ export function parseLifeData(input: unknown): LifeData {
     oneLines: parseLines(input.oneLines),
     goals: parseGoals(input.goals),
     reflections: parseReflections(input.reflections),
+    todos: parseTodos(input.todos),
+    weeklyReviews: parseWeeklyReviews(input.weeklyReviews),
+    programStart,
+    programDays,
+    pastPrograms: parsePastPrograms(input.pastPrograms),
   };
 }
 
@@ -199,5 +300,10 @@ export function selectData(state: LifeData): LifeData {
     oneLines: state.oneLines,
     goals: state.goals,
     reflections: state.reflections,
+    todos: state.todos,
+    weeklyReviews: state.weeklyReviews,
+    programStart: state.programStart,
+    programDays: state.programDays,
+    pastPrograms: state.pastPrograms,
   };
 }

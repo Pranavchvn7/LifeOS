@@ -11,7 +11,7 @@ export function GoalsView() {
   const today = todayISO();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="goals-view">
       <div>
         <h1 className="font-display text-3xl font-medium tracking-tight">Goals</h1>
         <p className="mt-1 text-sm text-muted">
@@ -61,7 +61,7 @@ function GoalList({
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-2xl font-medium">{title}</h2>
-        <button type="button" onClick={onAdd} className="h-11 rounded-md bg-accent px-3 text-sm font-medium text-accent-fg">
+        <button type="button" data-testid={`add-goal-${horizon}`} onClick={onAdd} className="h-11 rounded-md bg-accent px-3 text-sm font-medium text-accent-fg">
           Add goal
         </button>
       </div>
@@ -94,6 +94,8 @@ function GoalCard({
   return (
     <Panel>
       <input
+        aria-label="Goal title"
+        data-testid="goal-title"
         value={goal.title}
         maxLength={200}
         onChange={(event) => onPatch(goal.id, { title: event.target.value })}
@@ -111,6 +113,7 @@ function GoalCard({
         <label className="text-sm">
           Status
           <select
+            data-testid="goal-status"
             value={goal.status}
             onChange={(event) => onPatch(goal.id, { status: event.target.value as GoalStatus })}
             className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base"
@@ -127,6 +130,8 @@ function GoalCard({
         {overdue ? <span className="text-bad"> · overdue</span> : null}
         <input
           type="range"
+          aria-label="Goal progress"
+          data-testid="goal-progress"
           min={0}
           max={100}
           value={goal.progress}

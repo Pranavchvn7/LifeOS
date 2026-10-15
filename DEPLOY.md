@@ -9,3 +9,7 @@
 3. Redeploy. The build runs `npm run db:migrate` and creates the tables.
 
 Sign-up uses email + password. "Continue with Google/X" only appears on Grok-hosted domains.
+
+## Updating to v4
+No new environment variables. The build applies the new `migrations/0003_share_links.sql` automatically
+(it adds the table behind "Share my progress"). Run the build once with `DATABASE_URL` set (Vercel does this).

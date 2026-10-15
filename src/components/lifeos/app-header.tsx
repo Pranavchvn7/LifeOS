@@ -5,7 +5,7 @@ import { hasGateSessionMarker } from "@/lib/auth/gate-session-marker";
 import { useCurrentUser, type AppUser } from "@/lib/auth/use-current-user";
 import { formatLong, todayISO } from "@/lib/lifeos/model";
 import { buildScores, currentStreak } from "@/lib/lifeos/score";
-import { useLife } from "@/lib/lifeos/store";
+import { useLifeData } from "@/lib/lifeos/use-life-data";
 import type { Theme } from "@/lib/lifeos/theme";
 import { cn } from "@/lib/utils";
 
@@ -39,22 +39,9 @@ export function AppHeader({
   saveNote: string;
 }) {
   const user = useCurrentUser();
-  const dos = useLife((state) => state.dos);
-  const donts = useLife((state) => state.donts);
-  const doChecks = useLife((state) => state.doChecks);
-  const dontChecks = useLife((state) => state.dontChecks);
+  const data = useLifeData();
   const today = todayISO();
-  const streak = useMemo(
-    () =>
-      currentStreak(
-        buildScores(
-          { dos, donts, doChecks, dontChecks, journals: {}, oneLines: {}, goals: [], reflections: {} },
-          today,
-        ),
-        today,
-      ),
-    [dos, donts, doChecks, dontChecks, today],
-  );
+  const streak = useMemo(() => currentStreak(buildScores(data, today), today), [data, today]);
 
   const gateSession = useSyncExternalStore(subscribeToNothing, hasGateSessionMarker, noGateSessionOnServer);
   const canSignOut = authEnabled && !gateSession;
@@ -78,7 +65,7 @@ export function AppHeader({
     <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
       <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-8">
         <div className="min-w-0">
-          <p className="truncate font-display text-lg font-medium leading-tight md:text-2xl">
+          <p data-testid="greeting" className="truncate font-display text-lg font-medium leading-tight md:text-2xl">
             {greeting()}, {firstName(user)}
           </p>
           <p className="truncate text-xs text-muted md:text-sm">
@@ -90,6 +77,7 @@ export function AppHeader({
         <div className="flex shrink-0 items-center gap-2">
           {streak > 0 ? (
             <span
+              data-testid="streak-badge"
               className="hidden h-11 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-sm font-medium sm:flex"
               title="Current streak of good days (80%+)"
             >
@@ -99,18 +87,20 @@ export function AppHeader({
           ) : null}
           <button
             type="button"
+            data-testid="theme-toggle"
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             onClick={onToggleTheme}
             className={iconBtn}
           >
             {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
           </button>
-          <button type="button" aria-label="Account and habits" onClick={onSettings} className={cn(iconBtn, "md:hidden")}>
+          <button type="button" data-testid="settings-open-mobile" aria-label="Account and settings" onClick={onSettings} className={cn(iconBtn, "md:hidden")}>
             <Settings className="size-5" />
           </button>
           {canSignOut ? (
             <button
               type="button"
+              data-testid="logout-button"
               onClick={logout}
               disabled={signingOut}
               aria-label="Log out"
