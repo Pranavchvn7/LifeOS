@@ -112,6 +112,7 @@ function LoginCard() {
               <div className="grid grid-cols-2 gap-1 rounded-lg bg-inset p-1">
                 <button
                   type="button"
+                  data-testid="auth-tab-in"
                   className={
                     mode === "in"
                       ? "h-11 rounded-md bg-surface text-sm font-medium text-fg"
@@ -126,6 +127,7 @@ function LoginCard() {
                 </button>
                 <button
                   type="button"
+                  data-testid="auth-tab-up"
                   className={
                     mode === "up"
                       ? "h-11 rounded-md bg-surface text-sm font-medium text-fg"
@@ -145,6 +147,7 @@ function LoginCard() {
                   <label className="block text-sm font-medium text-fg">
                     Name
                     <input
+                      data-testid="auth-name"
                       className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base font-normal"
                       autoComplete="name"
                       value={name}
@@ -156,6 +159,7 @@ function LoginCard() {
                   Email
                   <input
                     type="email"
+                    data-testid="auth-email"
                     className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base font-normal"
                     autoComplete="email"
                     value={email}
@@ -166,15 +170,21 @@ function LoginCard() {
                   Password
                   <input
                     type="password"
+                    data-testid="auth-password"
                     className="mt-1 h-11 w-full rounded-md border border-line bg-paper px-3 text-base font-normal"
                     autoComplete={mode === "up" ? "new-password" : "current-password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />
                 </label>
-                {error ? <p className="text-sm text-bad">{error}</p> : null}
+                {error ? (
+                  <p role="alert" data-testid="auth-error" className="text-sm text-bad">
+                    {error}
+                  </p>
+                ) : null}
                 <button
                   type="submit"
+                  data-testid="auth-submit"
                   disabled={pending}
                   className="h-11 w-full rounded-md bg-accent text-sm font-medium text-accent-fg disabled:opacity-60"
                 >

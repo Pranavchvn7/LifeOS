@@ -619,11 +619,13 @@ function ChartBox({ className, children }: { className?: string; children: React
 
 function Stat({ label, value, children }: { label: string; value: string; children?: ReactNode }) {
   return (
-    <Panel className="p-4">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 font-display text-3xl font-medium tabular-nums">{value}</p>
-      <div className="mt-0.5 min-h-4">{children}</div>
-    </Panel>
+    <div data-testid="kpi" data-kpi={label} className="h-full">
+      <Panel className="h-full p-4">
+        <p className="text-sm text-muted">{label}</p>
+        <p className="mt-1 font-display text-3xl font-medium tabular-nums">{value}</p>
+        <div className="mt-0.5 min-h-4">{children}</div>
+      </Panel>
+    </div>
   );
 }
 

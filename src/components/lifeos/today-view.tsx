@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BellRing, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   MOODS,
@@ -57,7 +57,13 @@ export function TodayView({
   const todaysDonts = donts.filter((habit) => isScheduled(habit, date));
   const hiddenCount = dos.length - todaysDos.length + (donts.length - todaysDonts.length);
   const reviewMonday = reviewWeekFor(today);
-  const showReview = reviewMonday !== null && date === today && !isReviewDone(data.weeklyReviews[reviewMonday]);
+  const reviewPending = reviewMonday !== null && !isReviewDone(data.weeklyReviews[reviewMonday]);
+  // Once the card has been shown this session it stays, even after the first words are typed.
+  const [reviewKept, setReviewKept] = useState<string | null>(null);
+  useEffect(() => {
+    if (reviewPending && reviewMonday) setReviewKept(reviewMonday);
+  }, [reviewPending, reviewMonday]);
+  const showReview = reviewMonday !== null && date === today && (reviewPending || reviewKept === reviewMonday);
   const programOver = today > program.end;
   const todoPanel = data.todos
     .filter((t) => !t.done && ((t.due && t.due <= today) || (!t.due && t.priority === "high")))
