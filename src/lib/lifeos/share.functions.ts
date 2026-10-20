@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
-import type { LifeData } from "./model";
+import { createBlank, type LifeData } from "./model";
 import { parseLifeData } from "./validate";
 
 const TOKEN = /^[A-Za-z0-9_-]{20,80}$/;
@@ -76,12 +76,17 @@ export const getSharedProgress = createServerFn({ method: "GET" })
     const link = links[0];
     if (!link) return null;
     const logs = await sql<{ payload: string }>`select payload from life_logs where user_id = ${link.user_id}`;
-    if (!logs[0]?.payload) return null;
+    // A brand-new account has no saved log yet. The link is still valid: show an empty board, not "not available".
+    const payload = logs[0]?.payload;
     let full: LifeData;
-    try {
-      full = parseLifeData(JSON.parse(logs[0].payload) as unknown);
-    } catch {
-      return null;
+    if (!payload) {
+      full = createBlank();
+    } else {
+      try {
+        full = parseLifeData(JSON.parse(payload) as unknown);
+      } catch {
+        return null;
+      }
     }
     // Strip everything private. Only scores-relevant fields leave the server.
     const stripChecks = <T extends { notes: string }>(src: Record<string, Record<string, T>>) =>
