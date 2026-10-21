@@ -208,7 +208,7 @@ End-to-end testing guide: [docs/TESTING.md](docs/TESTING.md).
 
 ## 🤖 About this project
 
-LifeOS began as a personal tool for building daily discipline during a 90-day interview-preparation program. The initial scaffold was generated with an AI app builder; I then took it to production myself — debugging and fixing the Vercel deployment and authentication, designing the progress board and analytics, adding the mobile layout and dark mode, and writing this documentation, with Claude as a pair-programming assistant.
+LifeOS began as a personal tool for building daily discipline during a 90-day interview-preparation program. The initial scaffold was generated with an AI app builder; I then took it to production myself — debugging and fixing the Vercel deployment and authentication, designing the progress board and analytics, adding the mobile layout and dark mode, and writing this documentation, with Claude as a pair-programming assistant. By Pranav Chavan.
 
 ## 👤 Author
 
