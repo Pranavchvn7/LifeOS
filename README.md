@@ -68,7 +68,7 @@
 
 ### Goals & journal
 - Short-term and long-term goals with category, target date, status, progress slider, notes, and overdue flag.
-- Journal timeline of every day you've written; open any entry to edit it.
+- Journal timeline of every day you've written; open entry to edit it.
 
 ### Accounts & data
 - **Email + password accounts** — every user has a private log that follows them across devices.
